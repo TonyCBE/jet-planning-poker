@@ -1,10 +1,277 @@
 <!DOCTYPE html>
-<html>
+<html lang="nl">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JET Planning Poker</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --card:#1f2937; --text:#f8fafc; --muted:#94a3b8; --accent:#2563eb; --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#111827); color:var(--text); }
+    header { padding:24px; border-bottom:1px solid #334155; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    h1 { margin:0; font-size:26px; }
+    .sub { color:var(--muted); font-size:14px; }
+    main { max-width:1200px; margin:0 auto; padding:24px; display:grid; grid-template-columns:360px 1fr; gap:20px; }
+    section { background:rgba(17,24,39,.92); border:1px solid #334155; border-radius:18px; padding:18px; box-shadow:0 18px 40px rgba(0,0,0,.25); }
+    label { display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; }
+    input, select, textarea { width:100%; padding:11px 12px; border-radius:10px; border:1px solid #475569; background:#020617; color:var(--text); font-size:15px; }
+    textarea { min-height:72px; resize:vertical; }
+    button { border:0; border-radius:10px; padding:11px 14px; background:var(--accent); color:white; font-weight:700; cursor:pointer; }
+    button.secondary { background:#334155; }
+    button.good { background:var(--ok); }
+    button.warn { background:var(--warn); color:#111827; }
+    button.bad { background:var(--bad); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .row { display:flex; gap:10px; align-items:center; }
+    .row > * { flex:1; }
+    .status { margin-top:12px; color:var(--muted); font-size:13px; min-height:18px; }
+    .cards { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .vote-card { min-width:64px; height:64px; border-radius:14px; border:1px solid #475569; background:#020617; color:#fff; font-size:22px; font-weight:800; }
+    .vote-card.selected { outline:3px solid #60a5fa; background:#1d4ed8; }
+    .story { background:#0f172a; border:1px solid #334155; border-radius:14px; padding:14px; margin:10px 0; }
+    .story.active { border-color:#60a5fa; box-shadow:0 0 0 2px rgba(96,165,250,.2); }
+    .story h3 { margin:0 0 6px; font-size:16px; }
+    .story a { color:#93c5fd; }
+    .participants { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:12px; }
+    .person { background:#0f172a; border:1px solid #334155; border-radius:14px; padding:12px; }
+    .person .name { font-weight:800; }
+    .pill { display:inline-block; margin-top:8px; padding:5px 8px; border-radius:999px; background:#334155; font-size:13px; color:#e2e8f0; }
+    .pill.voted { background:#14532d; }
+    .pill.revealed { background:#1d4ed8; font-weight:800; }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+    .small { font-size:12px; color:var(--muted); }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media (max-width:900px){ main{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;} }
+  </style>
 </head>
 <body>
-  <h1>JET Planning Poker</h1>
-  <p>GitHub Pages werkt.</p>
+  <header>
+    <div>
+      <h1>JET Planning Poker</h1>
+      <div class="sub">Journey Enablement Team · realtime via Firebase · sessie: <strong id="sessionName"></strong></div>
+    </div>
+    <div class="row" style="max-width:420px">
+      <input id="sessionInput" placeholder="Sessienaam" />
+      <button id="openSessionBtn">Open</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Sessie</h2>
+      <label>Jouw naam</label>
+      <div class="row">
+        <input id="nameInput" placeholder="bv. Tony" />
+        <button id="joinBtn">Deelnemen</button>
+      </div>
+
+      <label>Schatmethode</label>
+      <select id="methodSelect">
+        <option value="fibonacci">Fibonacci</option>
+        <option value="tshirt">T-shirt</option>
+        <option value="powers">Powers of 2</option>
+      </select>
+
+      <div class="toolbar">
+        <button class="good" id="revealBtn">Reveal</button>
+        <button class="secondary" id="hideBtn">Verberg stemmen</button>
+        <button class="warn" id="resetVotesBtn">Reset stemmen</button>
+      </div>
+      <div class="status" id="status"></div>
+
+      <h2>Nieuwe story</h2>
+      <label>Titel</label>
+      <input id="storyTitle" placeholder="Story of feature" />
+      <label>Jira-link</label>
+      <input id="storyLink" placeholder="https://..." />
+      <label>Notities</label>
+      <textarea id="storyNotes" placeholder="Korte context"></textarea>
+      <button id="addStoryBtn" style="margin-top:12px;width:100%">Story toevoegen</button>
+
+      <p class="small">Deel dezelfde GitHub Pages URL met dezelfde <code>?session=JET</code>.</p>
+    </section>
+
+    <section>
+      <div class="grid2">
+        <div>
+          <h2>Stories</h2>
+          <div id="stories"></div>
+        </div>
+        <div>
+          <h2>Stemmen</h2>
+          <div id="currentStory" class="small">Geen actieve story geselecteerd.</div>
+          <div class="cards" id="voteCards"></div>
+          <h2>Deelnemers</h2>
+          <div class="participants" id="participants"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, update, push, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD1PqOmEgNDaKVcN-8bqm3h7fEmi4TqjKU",
+      authDomain: "jet-planning-poker.firebaseapp.com",
+      databaseURL: "https://jet-planning-poker-default-rtdb.firebaseio.com",
+      projectId: "jet-planning-poker",
+      storageBucket: "jet-planning-poker.firebasestorage.app",
+      messagingSenderId: "1025311597119",
+      appId: "1:1025311597119:web:a5a83252f42111fe5fce8a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const methods = {
+      fibonacci: ["0", "1", "2", "3", "5", "8", "13", "21", "?", "☕"],
+      tshirt: ["XS", "S", "M", "L", "XL", "XXL", "?", "☕"],
+      powers: ["1", "2", "4", "8", "16", "32", "?", "☕"]
+    };
+
+    const $ = id => document.getElementById(id);
+    let session = new URLSearchParams(location.search).get("session") || "JET";
+    let participantId = localStorage.getItem("jetPokerParticipantId") || crypto.randomUUID();
+    localStorage.setItem("jetPokerParticipantId", participantId);
+    let myName = localStorage.getItem("jetPokerName") || "";
+    let state = {};
+
+    function safeSessionName(s){ return (s || "JET").trim().replace(/[^a-zA-Z0-9_-]/g,"-").slice(0,60) || "JET"; }
+    function baseRef(){ return ref(db, `sessions/${session}`); }
+    function status(msg){ $("status").textContent = msg || ""; }
+
+    function init(){
+      session = safeSessionName(session);
+      $("sessionName").textContent = session;
+      $("sessionInput").value = session;
+      $("nameInput").value = myName;
+      listen();
+      bind();
+      renderVoteCards();
+    }
+
+    function bind(){
+      $("openSessionBtn").onclick = () => {
+        const s = safeSessionName($("sessionInput").value);
+        location.href = `${location.pathname}?session=${encodeURIComponent(s)}`;
+      };
+      $("joinBtn").onclick = join;
+      $("methodSelect").onchange = async () => {
+        await update(baseRef(), { method: $("methodSelect").value, revealed: false, votes: null });
+        renderVoteCards();
+      };
+      $("revealBtn").onclick = () => update(baseRef(), { revealed: true });
+      $("hideBtn").onclick = () => update(baseRef(), { revealed: false });
+      $("resetVotesBtn").onclick = () => update(baseRef(), { votes: null, revealed: false });
+      $("addStoryBtn").onclick = addStory;
+    }
+
+    function listen(){
+      onValue(baseRef(), snap => {
+        state = snap.val() || {};
+        if (!state.method) update(baseRef(), { method: "fibonacci", revealed: false, createdAt: serverTimestamp() });
+        $("methodSelect").value = state.method || "fibonacci";
+        renderAll();
+        status("Verbonden");
+      }, err => status("Firebase fout: " + err.message));
+    }
+
+    async function join(){
+      const name = $("nameInput").value.trim();
+      if (!name) return status("Vul eerst je naam in.");
+      myName = name;
+      localStorage.setItem("jetPokerName", myName);
+      const pRef = ref(db, `sessions/${session}/participants/${participantId}`);
+      await set(pRef, { name: myName, joinedAt: Date.now(), lastSeen: Date.now() });
+      onDisconnect(pRef).update({ offline: true, lastSeen: Date.now() });
+      status(`${myName} neemt deel.`);
+    }
+
+    async function addStory(){
+      const title = $("storyTitle").value.trim();
+      if (!title) return status("Geef de story een titel.");
+      const story = {
+        title,
+        link: $("storyLink").value.trim(),
+        notes: $("storyNotes").value.trim(),
+        createdAt: Date.now()
+      };
+      const newRef = push(ref(db, `sessions/${session}/stories`));
+      await set(newRef, story);
+      await update(baseRef(), { activeStoryId: newRef.key, votes: null, revealed: false });
+      $("storyTitle").value = ""; $("storyLink").value = ""; $("storyNotes").value = "";
+    }
+
+    async function selectStory(id){
+      await update(baseRef(), { activeStoryId: id, votes: null, revealed: false });
+    }
+
+    async function deleteStory(id){
+      if (!confirm("Story verwijderen?")) return;
+      await remove(ref(db, `sessions/${session}/stories/${id}`));
+      if (state.activeStoryId === id) await update(baseRef(), { activeStoryId: null, votes: null, revealed: false });
+    }
+
+    async function vote(value){
+      if (!myName) return status("Vul je naam in en klik op Deelnemen.");
+      if (!state.activeStoryId) return status("Selecteer eerst een story.");
+      await update(ref(db, `sessions/${session}/votes/${participantId}`), { name: myName, value, votedAt: Date.now() });
+      await update(ref(db, `sessions/${session}/participants/${participantId}`), { name: myName, lastSeen: Date.now(), offline: false });
+      status(`Stem opgeslagen: ${value}`);
+    }
+
+    function renderAll(){ renderStories(); renderVoteCards(); renderParticipants(); }
+
+    function renderStories(){
+      const wrap = $("stories"); wrap.innerHTML = "";
+      const stories = state.stories || {};
+      const ids = Object.keys(stories).sort((a,b)=>(stories[a].createdAt||0)-(stories[b].createdAt||0));
+      if (!ids.length) { wrap.innerHTML = '<p class="small">Nog geen stories.</p>'; return; }
+      ids.forEach(id => {
+        const s = stories[id];
+        const div = document.createElement("div"); div.className = "story" + (id === state.activeStoryId ? " active" : "");
+        div.innerHTML = `<h3>${escapeHtml(s.title)}</h3>${s.link ? `<a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">Jira-ticket openen</a>` : ""}<p class="small">${escapeHtml(s.notes || "")}</p><div class="toolbar"><button class="secondary" data-action="select">Schatten</button><button class="bad" data-action="delete">Verwijderen</button></div>`;
+        div.querySelector('[data-action="select"]').onclick = () => selectStory(id);
+        div.querySelector('[data-action="delete"]').onclick = () => deleteStory(id);
+        wrap.appendChild(div);
+      });
+    }
+
+    function renderVoteCards(){
+      const wrap = $("voteCards"); wrap.innerHTML = "";
+      const method = state.method || $("methodSelect").value || "fibonacci";
+      const cards = methods[method] || methods.fibonacci;
+      const myVote = state.votes?.[participantId]?.value;
+      cards.forEach(v => {
+        const btn = document.createElement("button"); btn.className = "vote-card" + (myVote === v ? " selected" : ""); btn.textContent = v; btn.onclick = () => vote(v); wrap.appendChild(btn);
+      });
+      const story = state.stories?.[state.activeStoryId];
+      $("currentStory").innerHTML = story ? `Actieve story: <strong>${escapeHtml(story.title)}</strong>` : "Geen actieve story geselecteerd.";
+    }
+
+    function renderParticipants(){
+      const wrap = $("participants"); wrap.innerHTML = "";
+      const participants = state.participants || {};
+      const votes = state.votes || {};
+      const ids = Object.keys(participants).sort((a,b)=>(participants[a].name||"").localeCompare(participants[b].name||""));
+      if (!ids.length) { wrap.innerHTML = '<p class="small">Nog geen deelnemers.</p>'; return; }
+      ids.forEach(id => {
+        const p = participants[id]; const v = votes[id];
+        const pill = state.revealed
+          ? `<span class="pill revealed">${v ? escapeHtml(v.value) : "geen stem"}</span>`
+          : `<span class="pill ${v ? "voted" : ""}">${v ? "gestemd" : "wacht op stem"}</span>`;
+        const div = document.createElement("div"); div.className = "person";
+        div.innerHTML = `<div class="name">${escapeHtml(p.name || "Onbekend")}</div>${pill}`;
+        wrap.appendChild(div);
+      });
+    }
+
+    function escapeHtml(str){ return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+    function escapeAttr(str){ return escapeHtml(str).replace(/`/g,"&#96;"); }
+
+    init();
+  </script>
 </body>
 </html>
