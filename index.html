@@ -189,8 +189,14 @@
       myName = name;
       localStorage.setItem("jetPokerName", myName);
       const pRef = ref(db, `sessions/${session}/participants/${participantId}`);
+      const vRef = ref(db, `sessions/${session}/votes/${participantId}`);
       await set(pRef, { name: myName, joinedAt: Date.now(), lastSeen: Date.now(), offline: false });
-      onDisconnect(pRef).update({ offline: true, lastSeen: Date.now() });
+
+      // Remove the participant and their current vote when the browser/tab disconnects.
+      // Firebase triggers this automatically when the client connection is closed.
+      await onDisconnect(pRef).remove();
+      await onDisconnect(vRef).remove();
+
       status(`${myName} joined the session.`);
     }
 
