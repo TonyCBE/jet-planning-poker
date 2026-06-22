@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,6 +10,7 @@
     body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#111827); color:var(--text); }
     header { padding:24px; border-bottom:1px solid #334155; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
     h1 { margin:0; font-size:26px; }
+    h2 { margin-top:0; }
     .sub { color:var(--muted); font-size:14px; }
     main { max-width:1200px; margin:0 auto; padding:24px; display:grid; grid-template-columns:360px 1fr; gap:20px; }
     section { background:rgba(17,24,39,.92); border:1px solid #334155; border-radius:18px; padding:18px; box-shadow:0 18px 40px rgba(0,0,0,.25); }
@@ -21,6 +22,7 @@
     button.good { background:var(--ok); }
     button.warn { background:var(--warn); color:#111827; }
     button.bad { background:var(--bad); }
+    button.small-btn { padding:7px 9px; font-size:12px; }
     button:disabled { opacity:.55; cursor:not-allowed; }
     .row { display:flex; gap:10px; align-items:center; }
     .row > * { flex:1; }
@@ -29,7 +31,7 @@
     .vote-card { min-width:64px; height:64px; border-radius:14px; border:1px solid #475569; background:#020617; color:#fff; font-size:22px; font-weight:800; }
     .vote-card.selected { outline:3px solid #60a5fa; background:#1d4ed8; }
     .story { background:#0f172a; border:1px solid #334155; border-radius:14px; padding:14px; margin:10px 0; }
-    .story.active { border-color:#60a5fa; box-shadow:0 0 0 2px rgba(96,165,250,.2); }
+    .story.active { border-color:#60a5fa; box-shadow:0 0 0 2px rgba(96,165,250,.2); background:#111f3a; }
     .story h3 { margin:0 0 6px; font-size:16px; }
     .story a { color:#93c5fd; }
     .participants { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-top:12px; }
@@ -40,6 +42,8 @@
     .pill.revealed { background:#1d4ed8; font-weight:800; }
     .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
     .small { font-size:12px; color:var(--muted); }
+    .summary { margin:12px 0 6px; padding:12px; border-radius:14px; background:#0f172a; border:1px solid #334155; }
+    .summary strong { color:#fff; }
     .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
     @media (max-width:900px){ main{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;} }
   </style>
@@ -48,24 +52,24 @@
   <header>
     <div>
       <h1>JET Planning Poker</h1>
-      <div class="sub">Journey Enablement Team · realtime via Firebase · sessie: <strong id="sessionName"></strong></div>
+      <div class="sub">Journey Enablement Team · realtime via Firebase · session: <strong id="sessionName"></strong></div>
     </div>
     <div class="row" style="max-width:420px">
-      <input id="sessionInput" placeholder="Sessienaam" />
+      <input id="sessionInput" placeholder="Session name" />
       <button id="openSessionBtn">Open</button>
     </div>
   </header>
 
   <main>
     <section>
-      <h2>Sessie</h2>
-      <label>Jouw naam</label>
+      <h2>Session</h2>
+      <label>Your name</label>
       <div class="row">
-        <input id="nameInput" placeholder="bv. Tony" />
-        <button id="joinBtn">Deelnemen</button>
+        <input id="nameInput" placeholder="e.g. Tony" />
+        <button id="joinBtn">Join Session</button>
       </div>
 
-      <label>Schatmethode</label>
+      <label>Estimation method</label>
       <select id="methodSelect">
         <option value="fibonacci">Fibonacci</option>
         <option value="tshirt">T-shirt</option>
@@ -74,21 +78,21 @@
 
       <div class="toolbar">
         <button class="good" id="revealBtn">Reveal</button>
-        <button class="secondary" id="hideBtn">Verberg stemmen</button>
-        <button class="warn" id="resetVotesBtn">Reset stemmen</button>
+        <button class="secondary" id="hideBtn">Hide Votes</button>
+        <button class="warn" id="resetVotesBtn">Reset Votes</button>
       </div>
       <div class="status" id="status"></div>
 
-      <h2>Nieuwe story</h2>
-      <label>Titel</label>
-      <input id="storyTitle" placeholder="Story of feature" />
-      <label>Jira-link</label>
+      <h2>New story</h2>
+      <label>Title</label>
+      <input id="storyTitle" placeholder="Story or feature" />
+      <label>Jira link</label>
       <input id="storyLink" placeholder="https://..." />
-      <label>Notities</label>
-      <textarea id="storyNotes" placeholder="Korte context"></textarea>
-      <button id="addStoryBtn" style="margin-top:12px;width:100%">Story toevoegen</button>
+      <label>Notes</label>
+      <textarea id="storyNotes" placeholder="Short context"></textarea>
+      <button id="addStoryBtn" style="margin-top:12px;width:100%">Add Story</button>
 
-      <p class="small">Deel dezelfde GitHub Pages URL met dezelfde <code>?session=JET</code>.</p>
+      <p class="small">Share the same GitHub Pages URL using the same <code>?session=JET</code>.</p>
     </section>
 
     <section>
@@ -98,10 +102,11 @@
           <div id="stories"></div>
         </div>
         <div>
-          <h2>Stemmen</h2>
-          <div id="currentStory" class="small">Geen actieve story geselecteerd.</div>
+          <h2>Estimation</h2>
+          <div id="currentStory" class="small">No active story selected.</div>
+          <div id="voteSummary" class="summary small">No votes yet.</div>
           <div class="cards" id="voteCards"></div>
-          <h2>Deelnemers</h2>
+          <h2 style="margin-top:22px">Participants</h2>
           <div class="participants" id="participants"></div>
         </div>
       </div>
@@ -174,28 +179,30 @@
         if (!state.method) update(baseRef(), { method: "fibonacci", revealed: false, createdAt: serverTimestamp() });
         $("methodSelect").value = state.method || "fibonacci";
         renderAll();
-        status("Verbonden");
-      }, err => status("Firebase fout: " + err.message));
+        status("Connected");
+      }, err => status("Firebase error: " + err.message));
     }
 
     async function join(){
       const name = $("nameInput").value.trim();
-      if (!name) return status("Vul eerst je naam in.");
+      if (!name) return status("Please enter your name first.");
       myName = name;
       localStorage.setItem("jetPokerName", myName);
       const pRef = ref(db, `sessions/${session}/participants/${participantId}`);
-      await set(pRef, { name: myName, joinedAt: Date.now(), lastSeen: Date.now() });
+      await set(pRef, { name: myName, joinedAt: Date.now(), lastSeen: Date.now(), offline: false });
       onDisconnect(pRef).update({ offline: true, lastSeen: Date.now() });
-      status(`${myName} neemt deel.`);
+      status(`${myName} joined the session.`);
     }
 
     async function addStory(){
       const title = $("storyTitle").value.trim();
-      if (!title) return status("Geef de story een titel.");
+      if (!title) return status("Please enter a story title.");
+      const order = nextStoryOrder();
       const story = {
         title,
         link: $("storyLink").value.trim(),
         notes: $("storyNotes").value.trim(),
+        order,
         createdAt: Date.now()
       };
       const newRef = push(ref(db, `sessions/${session}/stories`));
@@ -204,36 +211,68 @@
       $("storyTitle").value = ""; $("storyLink").value = ""; $("storyNotes").value = "";
     }
 
+    function nextStoryOrder(){
+      const stories = state.stories || {};
+      const orders = Object.values(stories).map(s => Number.isFinite(s.order) ? s.order : (s.createdAt || 0));
+      return orders.length ? Math.max(...orders) + 1 : Date.now();
+    }
+
     async function selectStory(id){
       await update(baseRef(), { activeStoryId: id, votes: null, revealed: false });
     }
 
     async function deleteStory(id){
-      if (!confirm("Story verwijderen?")) return;
+      if (!confirm("Delete story?")) return;
       await remove(ref(db, `sessions/${session}/stories/${id}`));
       if (state.activeStoryId === id) await update(baseRef(), { activeStoryId: null, votes: null, revealed: false });
     }
 
-    async function vote(value){
-      if (!myName) return status("Vul je naam in en klik op Deelnemen.");
-      if (!state.activeStoryId) return status("Selecteer eerst een story.");
-      await update(ref(db, `sessions/${session}/votes/${participantId}`), { name: myName, value, votedAt: Date.now() });
-      await update(ref(db, `sessions/${session}/participants/${participantId}`), { name: myName, lastSeen: Date.now(), offline: false });
-      status(`Stem opgeslagen: ${value}`);
+    async function moveStory(id, direction){
+      const ordered = getOrderedStories();
+      const index = ordered.findIndex(item => item.id === id);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return;
+      const updates = {};
+      updates[`stories/${ordered[index].id}/order`] = ordered[targetIndex].story.order ?? ordered[targetIndex].story.createdAt ?? targetIndex;
+      updates[`stories/${ordered[targetIndex].id}/order`] = ordered[index].story.order ?? ordered[index].story.createdAt ?? index;
+      await update(baseRef(), updates);
     }
 
-    function renderAll(){ renderStories(); renderVoteCards(); renderParticipants(); }
+    async function vote(value){
+      if (!myName) return status("Enter your name and click Join Session.");
+      if (!state.activeStoryId) return status("Select a story first.");
+      await update(ref(db, `sessions/${session}/votes/${participantId}`), { name: myName, value, votedAt: Date.now() });
+      await update(ref(db, `sessions/${session}/participants/${participantId}`), { name: myName, lastSeen: Date.now(), offline: false });
+      status(`Vote recorded: ${value}`);
+    }
+
+    function renderAll(){ renderStories(); renderVoteCards(); renderParticipants(); renderVoteSummary(); }
+
+    function getOrderedStories(){
+      const stories = state.stories || {};
+      return Object.keys(stories)
+        .map(id => ({ id, story: stories[id] }))
+        .sort((a,b) => {
+          const ao = a.story.order ?? a.story.createdAt ?? 0;
+          const bo = b.story.order ?? b.story.createdAt ?? 0;
+          return ao - bo;
+        });
+    }
 
     function renderStories(){
       const wrap = $("stories"); wrap.innerHTML = "";
-      const stories = state.stories || {};
-      const ids = Object.keys(stories).sort((a,b)=>(stories[a].createdAt||0)-(stories[b].createdAt||0));
-      if (!ids.length) { wrap.innerHTML = '<p class="small">Nog geen stories.</p>'; return; }
-      ids.forEach(id => {
-        const s = stories[id];
+      const ordered = getOrderedStories();
+      if (!ordered.length) { wrap.innerHTML = '<p class="small">No stories yet.</p>'; return; }
+      ordered.forEach((item, index) => {
+        const id = item.id;
+        const s = item.story;
         const div = document.createElement("div"); div.className = "story" + (id === state.activeStoryId ? " active" : "");
-        div.innerHTML = `<h3>${escapeHtml(s.title)}</h3>${s.link ? `<a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">Jira-ticket openen</a>` : ""}<p class="small">${escapeHtml(s.notes || "")}</p><div class="toolbar"><button class="secondary" data-action="select">Schatten</button><button class="bad" data-action="delete">Verwijderen</button></div>`;
+        div.innerHTML = `<h3>${escapeHtml(s.title)}</h3>${s.link ? `<a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">Open Jira ticket</a>` : ""}<p class="small">${escapeHtml(s.notes || "")}</p><div class="toolbar"><button class="secondary" data-action="select">Estimate</button><button class="secondary small-btn" data-action="up" title="Move up">↑</button><button class="secondary small-btn" data-action="down" title="Move down">↓</button><button class="bad" data-action="delete">Delete</button></div>`;
         div.querySelector('[data-action="select"]').onclick = () => selectStory(id);
+        div.querySelector('[data-action="up"]').onclick = () => moveStory(id, -1);
+        div.querySelector('[data-action="down"]').onclick = () => moveStory(id, 1);
+        div.querySelector('[data-action="up"]').disabled = index === 0;
+        div.querySelector('[data-action="down"]').disabled = index === ordered.length - 1;
         div.querySelector('[data-action="delete"]').onclick = () => deleteStory(id);
         wrap.appendChild(div);
       });
@@ -248,7 +287,33 @@
         const btn = document.createElement("button"); btn.className = "vote-card" + (myVote === v ? " selected" : ""); btn.textContent = v; btn.onclick = () => vote(v); wrap.appendChild(btn);
       });
       const story = state.stories?.[state.activeStoryId];
-      $("currentStory").innerHTML = story ? `Actieve story: <strong>${escapeHtml(story.title)}</strong>` : "Geen actieve story geselecteerd.";
+      $("currentStory").innerHTML = story ? `Active story: <strong>${escapeHtml(story.title)}</strong>` : "No active story selected.";
+    }
+
+    function renderVoteSummary(){
+      const participants = state.participants || {};
+      const votes = state.votes || {};
+      const participantIds = Object.keys(participants);
+      const voteValues = Object.values(votes).map(v => v.value).filter(v => v !== undefined && v !== null);
+      const votedCount = participantIds.filter(id => votes[id]).length;
+      const total = participantIds.length;
+      let html = `<strong>${votedCount} / ${total}</strong> participants voted.`;
+
+      if (state.revealed && voteValues.length) {
+        const counts = {};
+        voteValues.forEach(v => counts[v] = (counts[v] || 0) + 1);
+        const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+        const top = sorted[0];
+        const distribution = sorted.map(([value, count]) => `${escapeHtml(value)} × ${count}`).join(" · ");
+        html += `<br>Most selected: <strong>${escapeHtml(top[0])}</strong> (${top[1]} vote${top[1] === 1 ? "" : "s"}).`;
+        html += `<br>Distribution: ${distribution}.`;
+      } else if (!state.revealed && voteValues.length) {
+        html += `<br>Votes are hidden until Reveal.`;
+      } else if (!voteValues.length) {
+        html += `<br>No votes yet.`;
+      }
+
+      $("voteSummary").innerHTML = html;
     }
 
     function renderParticipants(){
@@ -256,14 +321,14 @@
       const participants = state.participants || {};
       const votes = state.votes || {};
       const ids = Object.keys(participants).sort((a,b)=>(participants[a].name||"").localeCompare(participants[b].name||""));
-      if (!ids.length) { wrap.innerHTML = '<p class="small">Nog geen deelnemers.</p>'; return; }
+      if (!ids.length) { wrap.innerHTML = '<p class="small">No participants yet.</p>'; return; }
       ids.forEach(id => {
         const p = participants[id]; const v = votes[id];
         const pill = state.revealed
-          ? `<span class="pill revealed">${v ? escapeHtml(v.value) : "geen stem"}</span>`
-          : `<span class="pill ${v ? "voted" : ""}">${v ? "gestemd" : "wacht op stem"}</span>`;
+          ? `<span class="pill revealed">${v ? escapeHtml(v.value) : "no vote"}</span>`
+          : `<span class="pill ${v ? "voted" : ""}">${v ? "voted" : "waiting for vote"}</span>`;
         const div = document.createElement("div"); div.className = "person";
-        div.innerHTML = `<div class="name">${escapeHtml(p.name || "Onbekend")}</div>${pill}`;
+        div.innerHTML = `<div class="name">${escapeHtml(p.name || "Unknown")}</div>${pill}`;
         wrap.appendChild(div);
       });
     }
