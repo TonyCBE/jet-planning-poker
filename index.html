@@ -189,14 +189,10 @@
       myName = name;
       localStorage.setItem("jetPokerName", myName);
       const pRef = ref(db, `sessions/${session}/participants/${participantId}`);
-      const vRef = ref(db, `sessions/${session}/votes/${participantId}`);
+      const voteRef = ref(db, `sessions/${session}/votes/${participantId}`);
       await set(pRef, { name: myName, joinedAt: Date.now(), lastSeen: Date.now(), offline: false });
-
-      // Remove the participant and their current vote when the browser/tab disconnects.
-      // Firebase triggers this automatically when the client connection is closed.
-      await onDisconnect(pRef).remove();
-      await onDisconnect(vRef).remove();
-
+      onDisconnect(pRef).remove();
+      onDisconnect(voteRef).remove();
       status(`${myName} joined the session.`);
     }
 
@@ -299,7 +295,7 @@
     function renderVoteSummary(){
       const participants = state.participants || {};
       const votes = state.votes || {};
-      const participantIds = Object.keys(participants);
+      const participantIds = Object.keys(participants).filter(id => !participants[id].offline);
       const voteValues = Object.values(votes).map(v => v.value).filter(v => v !== undefined && v !== null);
       const votedCount = participantIds.filter(id => votes[id]).length;
       const total = participantIds.length;
@@ -326,7 +322,9 @@
       const wrap = $("participants"); wrap.innerHTML = "";
       const participants = state.participants || {};
       const votes = state.votes || {};
-      const ids = Object.keys(participants).sort((a,b)=>(participants[a].name||"").localeCompare(participants[b].name||""));
+      const ids = Object.keys(participants)
+        .filter(id => !participants[id].offline)
+        .sort((a,b)=>(participants[a].name||"").localeCompare(participants[b].name||""));
       if (!ids.length) { wrap.innerHTML = '<p class="small">No participants yet.</p>'; return; }
       ids.forEach(id => {
         const p = participants[id]; const v = votes[id];
