@@ -76,11 +76,6 @@
         <option value="powers">Powers of 2</option>
       </select>
 
-      <div class="toolbar">
-        <button class="good" id="revealBtn">Reveal</button>
-        <button class="secondary" id="hideBtn">Hide Votes</button>
-        <button class="warn" id="resetVotesBtn">Reset Votes</button>
-      </div>
       <div class="status" id="status"></div>
 
       <h2>New story</h2>
@@ -106,6 +101,11 @@
           <div id="currentStory" class="small">No active story selected.</div>
           <div id="voteSummary" class="summary small">No votes yet.</div>
           <div class="cards" id="voteCards"></div>
+          <div class="toolbar">
+            <button class="good" id="revealBtn">Reveal</button>
+            <button class="secondary" id="hideBtn">Hide Votes</button>
+            <button class="warn" id="resetVotesBtn">Reset Votes</button>
+          </div>
           <h2 style="margin-top:22px">Participants</h2>
           <div class="participants" id="participants"></div>
         </div>
@@ -115,7 +115,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set, update, push, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    import { getDatabase, ref, onValue, set, update, push, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD1PqOmEgNDaKVcN-8bqm3h7fEmi4TqjKU",
@@ -143,7 +143,6 @@
     let myName = localStorage.getItem("jetPokerName") || "";
     let state = {};
     let heartbeatTimer = null;
-    const PRESENCE_TIMEOUT_MS = 30000;
 
     function safeSessionName(s){ return (s || "JET").trim().replace(/[^a-zA-Z0-9_-]/g,"-").slice(0,60) || "JET"; }
     function baseRef(){ return ref(db, `sessions/${session}`); }
@@ -193,11 +192,6 @@
       localStorage.setItem("jetPokerName", myName);
 
       const pRef = ref(db, `sessions/${session}/participants/${participantId}`);
-      const voteRef = ref(db, `sessions/${session}/votes/${participantId}`);
-
-      // Register disconnect cleanup before writing presence.
-      await onDisconnect(pRef).remove();
-      await onDisconnect(voteRef).remove();
 
       await set(pRef, { name: myName, joinedAt: Date.now(), lastSeen: Date.now(), offline: false });
       startHeartbeat();
@@ -214,13 +208,6 @@
       beat();
       heartbeatTimer = setInterval(beat, 5000);
     }
-
-    // Best-effort cleanup for normal tab/browser closes. The heartbeat timeout below
-    // is the reliable fallback for cases where the browser blocks async unload work.
-    window.addEventListener("pagehide", () => {
-      remove(ref(db, `sessions/${session}/participants/${participantId}`)).catch(() => {});
-      remove(ref(db, `sessions/${session}/votes/${participantId}`)).catch(() => {});
-    });
 
     async function addStory(){
       const title = $("storyTitle").value.trim();
@@ -274,7 +261,7 @@
       status(`Vote recorded: ${value}`);
     }
 
-    function renderAll(){ cleanupStalePresence(); renderStories(); renderVoteCards(); renderParticipants(); renderVoteSummary(); }
+    function renderAll(){ renderStories(); renderVoteCards(); renderParticipants(); renderVoteSummary(); }
 
     function getOrderedStories(){
       const stories = state.stories || {};
@@ -321,7 +308,7 @@
     function renderVoteSummary(){
       const participants = state.participants || {};
       const votes = state.votes || {};
-      const participantIds = Object.keys(participants).filter(id => !participants[id].offline);
+      const participantIds = Object.keys(participants);
       const voteValues = Object.values(votes).map(v => v.value).filter(v => v !== undefined && v !== null);
       const votedCount = participantIds.filter(id => votes[id]).length;
       const total = participantIds.length;
@@ -347,30 +334,7 @@
 
     function activeParticipantIds(){
       const participants = state.participants || {};
-      const now = Date.now();
-      return Object.keys(participants).filter(id => {
-        const p = participants[id] || {};
-        if (p.offline) return false;
-        if (!p.lastSeen) return true;
-        return now - p.lastSeen <= PRESENCE_TIMEOUT_MS;
-      });
-    }
-
-    function cleanupStalePresence(){
-      const participants = state.participants || {};
-      const votes = state.votes || {};
-      const now = Date.now();
-      const updates = {};
-      let changed = false;
-      Object.keys(participants).forEach(id => {
-        const p = participants[id] || {};
-        if (p.offline || (p.lastSeen && now - p.lastSeen > PRESENCE_TIMEOUT_MS)) {
-          updates[`participants/${id}`] = null;
-          if (votes[id]) updates[`votes/${id}`] = null;
-          changed = true;
-        }
-      });
-      if (changed) update(baseRef(), updates).catch(() => {});
+      return Object.keys(participants);
     }
 
     function renderParticipants(){
