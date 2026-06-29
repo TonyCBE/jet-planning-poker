@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JET Planning Poker</title>
+  <title>JET Planning Poker v3</title>
   <style>
     :root { --bg:#0f172a; --panel:#111827; --card:#1f2937; --text:#f8fafc; --muted:#94a3b8; --accent:#2563eb; --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626; }
     * { box-sizing:border-box; }
@@ -52,7 +52,7 @@
   <header>
     <div>
       <h1>JET Planning Poker</h1>
-      <div class="sub">Journey Enablement Team · session: <strong id="sessionName"></strong><br>Copyright: Tony Courtens</div>
+      <div class="sub">Journey Enablement Team · session: <strong id="sessionName"></strong><br>Copyright: Tony Courtens · layout v3</div>
     </div>
     <div class="row" style="max-width:420px">
       <input id="sessionInput" placeholder="Session name" />
@@ -142,7 +142,6 @@
     let myName = localStorage.getItem("jetPokerName") || "";
     let state = {};
     let heartbeatTimer = null;
-    const PRESENCE_TIMEOUT_MS = 30000;
 
     function safeSessionName(s){ return (s || "JET").trim().replace(/[^a-zA-Z0-9_-]/g,"-").slice(0,60) || "JET"; }
     function baseRef(){ return ref(db, `sessions/${session}`); }
