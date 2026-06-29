@@ -75,7 +75,6 @@
         <option value="tshirt">T-shirt</option>
         <option value="powers">Powers of 2</option>
       </select>
-
       <div class="status" id="status"></div>
 
       <h2>New story</h2>
@@ -143,6 +142,7 @@
     let myName = localStorage.getItem("jetPokerName") || "";
     let state = {};
     let heartbeatTimer = null;
+    const PRESENCE_TIMEOUT_MS = 30000;
 
     function safeSessionName(s){ return (s || "JET").trim().replace(/[^a-zA-Z0-9_-]/g,"-").slice(0,60) || "JET"; }
     function baseRef(){ return ref(db, `sessions/${session}`); }
@@ -208,6 +208,7 @@
       beat();
       heartbeatTimer = setInterval(beat, 5000);
     }
+
 
     async function addStory(){
       const title = $("storyTitle").value.trim();
